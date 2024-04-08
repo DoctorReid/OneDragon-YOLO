@@ -1,0 +1,8 @@
+.idea
+.env
+one_dragon_data/
+.ipynb_checkpoints/
+.log/
+pytorch-tutorials/
+jupyter/test_*.ipynb
+data_set/
