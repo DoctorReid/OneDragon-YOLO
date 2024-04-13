@@ -21,7 +21,32 @@
 
 ## 数据来源
 
-图片来源于游戏中的智库，以及[一条龙]()脚本运行时的自动截图。
+- 游戏中的智库
+- [一条龙](https://github.com/DoctorReid/StarRailOneDragon)脚本运行时的自动截图
+- 手动截图补充
 
+## 分类
 
+|分类|描述|
+|---|---|
+|enemy-humanoid|敌人-人形|
+|enemy-sphericity|敌人-球形|
+|enemy-flying-wind|敌人-带飞翼|
+|enemy-biped|敌人-两足动物|
+|enemy-quadruped|敌人-四足动物|
+|enemy-machine|敌人-机器类|
+|npc-herta|NPC-黑塔|
+|sim-entry-not-active|模拟宇宙-下层入口-未激活|
+|sim-entry-active|模拟宇宙-下层入口-已激活|
+|sim-event|模拟宇宙-事件牌|
+|sim-reward|模拟宇宙-沉浸奖励装置|
+|destroy-technique|可破坏物-秘技点|
 
+具体分类见 [表格](分类表格.md)，数据标注使用[Label-Studio](https://github.com/DoctorReid/LabelStudio-windows-pip)
+
+# 其他 
+
+## 我的探索过程
+
+1. [第一次接触YOLO](notebook/experiments/01-first-trial/first.ipynb)
+2. []
