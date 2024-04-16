@@ -27,22 +27,7 @@
 
 ## 分类
 
-|分类|描述|
-|---|---|
-|enemy-humanoid|敌人-人形|
-|enemy-sphericity|敌人-球形|
-|enemy-flying-wind|敌人-带飞翼|
-|enemy-biped|敌人-两足动物|
-|enemy-quadruped|敌人-四足动物|
-|enemy-machine|敌人-机器类|
-|npc-herta|NPC-黑塔|
-|sim-entry-not-active|模拟宇宙-下层入口-未激活|
-|sim-entry-active|模拟宇宙-下层入口-已激活|
-|sim-event|模拟宇宙-事件牌|
-|sim-reward|模拟宇宙-沉浸奖励装置|
-|destroy-technique|可破坏物-秘技点|
-
-具体分类见 [表格](分类表格.md)，数据标注使用[Label-Studio](https://github.com/DoctorReid/LabelStudio-windows-pip)
+[表格](labels.csv)
 
 # 其他 
 

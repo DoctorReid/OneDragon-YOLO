@@ -3,3 +3,5 @@
 .ipynb_checkpoints/
 models/base/
 models/test/
+datasets
+runs
