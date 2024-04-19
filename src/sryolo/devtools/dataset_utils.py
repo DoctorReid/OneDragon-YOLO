@@ -6,48 +6,27 @@ from typing import Optional, List, Set
 import pandas as pd
 from ultralytics.data.utils import autosplit
 
-from sryolo.devtools import label_utils
-from sryolo.utils import os_utils
+from sryolo.devtools import label_studio_utils, ultralytics_utils
+from sryolo.utils import label_utils
+
+_BASE_DETECT = 'base-detect'
 
 
-def get_datasets_dir() -> str:
-    """
-    数据集的根目录
-    """
-    return os.path.join(os_utils.get_work_dir(), 'datasets')
-
-
-def get_dataset_dir(dataset_name: str) -> str:
-    """
-    获取特定数据集的目录
-    """
-    datasets_dir = get_datasets_dir()
-    return os.path.join(datasets_dir, dataset_name)
-
-
-def get_raw_images_dir() -> str:
-    """
-    原图的根目录
-    """
-    return os.path.join(os_utils.get_work_dir(), '.env', 'data', 'raw_images')
-
-
-def get_labels_dir(dataset_name: str) -> Optional[str]:
+def get_labels_dir(dataset_name: str) -> str:
     """
     获取数据集中 标签的文件夹路径
     """
-    dataset_dir = get_dataset_dir(dataset_name)
-    labels_bk_dir = os.path.join(dataset_dir, 'labels_bk')
-    if os.path.exists(labels_bk_dir) and os.path.isdir(labels_bk_dir):
-        return labels_bk_dir
-    labels_dir = os.path.join(dataset_dir, 'labels')
-    if os.path.exists(labels_dir) and os.path.isdir(labels_dir):
-        return labels_dir
-    return None
+    dir_path = os.path.join(ultralytics_utils.get_dataset_dir(dataset_name), 'labels')
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    return dir_path
 
 
-def get_dataset_images_dir(dataset_name: str) -> Optional[str]:
-    return os.path.join(get_dataset_dir(dataset_name), 'images')
+def get_dataset_images_dir(dataset_name: str) -> str:
+    dir_path = os.path.join(ultralytics_utils.get_dataset_dir(dataset_name), 'images')
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    return dir_path
 
 
 def read_label_txt(txt_path) -> pd.DataFrame:
@@ -57,33 +36,36 @@ def read_label_txt(txt_path) -> pd.DataFrame:
     return pd.read_csv(txt_path, sep=' ', header=None, encoding='utf-8', names=['idx', 'x', 'y', 'w', 'h'])
 
 
-def reorganize_labels(dataset_name: str,
+def clear_dataset_labels(dataset_name: str):
+    """
+    清除一个dataset的全部标签文件
+    """
+    labels_dir = get_labels_dir(dataset_name)
+    shutil.rmtree(labels_dir)
+    
+
+
+def init_dataset_labels(dataset_name: str,
                       labels_to_use: Optional[List[str]] = None,
                       cate_to_use: Optional[List[str]] = None,
                       labels_version: str = 'v1'
                       ) -> List[str]:
     """
-    重新整理标签 仅保留需要用来训练的
+    初始化一个数据集的标签 从base-detect数据集中复制过来
+    并按要求 仅保留需要用来训练的
     @param dataset_name: 数据集id
     @param labels_to_use: 限定使用的标签
     @param cate_to_use: 限定使用的类别
     @param labels_version: 标签版本
     @return 返回过滤后的标签
     """
-    target_dataset_dir = get_dataset_dir(dataset_name)
-
-    # 保留特定标签
-    labels_dir = os.path.join(target_dataset_dir, 'labels')
-    labels_bk_dir = os.path.join(target_dataset_dir, 'labels_bk')
-
-    # 备份原有标签
-    if not os.path.exists(labels_bk_dir):
-        os.rename(labels_dir, labels_bk_dir)
+    soucec_labels_dir = get_labels_dir(_BASE_DETECT)
+    target_labels_dir = get_labels_dir(dataset_name)
 
     # 重新创建标签
-    if os.path.exists(labels_dir):
-        shutil.rmtree(labels_dir)
-    os.mkdir(labels_dir)
+    if os.path.exists(target_labels_dir):
+        shutil.rmtree(target_labels_dir)
+    os.mkdir(target_labels_dir)
 
     labels_df = label_utils.read_label_csv()
 
@@ -115,75 +97,36 @@ def reorganize_labels(dataset_name: str,
         label_2_idx_new[label] = id_new
         id_new += 1
 
-    for label_txt in os.listdir(labels_bk_dir):
+    for label_txt in os.listdir(soucec_labels_dir):
         if not label_txt.endswith('.txt'):
             continue
-        label_txt_path = os.path.join(labels_bk_dir, label_txt)
-        df = pd.read_csv(label_txt_path, sep='\s+', header=None, names=['id', 'x', 'y', 'w', 'h'])
+        label_txt_path = os.path.join(soucec_labels_dir, label_txt)
+        df = read_label_txt(label_txt_path)
 
-        df['id'] = df['id'].map(id_old_2_new)
+        # 转化成新的下标
+        df['idx'] = df['idx'].map(id_old_2_new)
         df.dropna(inplace=True)
-        df['id'] = df['id'].astype(int)
+        df['idx'] = df['idx'].astype(int)
 
         if len(df) > 0:  # 过滤之后 还有标签的才保存
-            new_label_txt_path = os.path.join(labels_dir, label_txt)
+            new_label_txt_path = os.path.join(target_labels_dir, label_txt)
             df.to_csv(new_label_txt_path, sep=' ', index=False, header=False)
 
     return labels_to_use_real
 
 
-def reorganize_images(dataset_name: str):
-    """
-    将没有标签的图片移到备份的图片文件夹中
-    """
-    target_dataset_dir = get_dataset_dir(dataset_name)
-
-    # 有标签的样例
-    label_case_ids: Set[str] = set()
-    labels_dir = os.path.join(target_dataset_dir, 'labels')
-    for label_txt in os.listdir(labels_dir):
-        if not label_txt.endswith('.txt'):
-            continue
-        label_case_ids.add(labels_dir[:-4])
-
-    image_usage_dir = os.path.join(target_dataset_dir, 'images')  # 用来训练的图片文件夹
-    image_bk_dir = os.path.join(target_dataset_dir, 'images_bk')  # 备份的图片文件夹
-
-    for img in os.listdir(image_usage_dir):
-        if not img.endswith('.png'):
-            continue
-        case_id = img[:-4]
-        if case_id in label_case_ids:
-            continue
-
-        # 没有标签的图片 移到备份文件夹中
-        old_img_path = os.path.join(image_usage_dir, '%s.png' % case_id)
-        new_img_path = os.path.join(image_bk_dir, '%s.png' % case_id)
-        shutil.move(old_img_path, new_img_path)
-
-    for img in os.listdir(image_bk_dir):
-        if not img.endswith('.png'):
-            continue
-        case_id = img[:-4]
-        if case_id not in label_case_ids:
-            continue
-
-        # 有标签的图片 移到使用文件夹中
-        old_img_path = os.path.join(image_bk_dir, '%s.png' % case_id)
-        new_img_path = os.path.join(image_usage_dir, '%s.png' % case_id)
-        shutil.move(old_img_path, new_img_path)
-
-
-def sync_raw_images_to_dataset(dataset_name: str):
+def init_dataset_images(dataset_name: str):
     """
     按照使用的标签 复制原图到数据集中
+    未做数据增强
     """
     labels_dir = get_labels_dir(dataset_name)
     label_case_ids = set()  # 有标签的样例
-    for label_txt in os.listdir(labels_dir):
-        if not label_txt.endswith('.txt'):
-            continue
-        label_case_ids.add(label_txt[:-4])
+    if os.path.exists(labels_dir) and os.path.isdir(labels_dir):
+        for label_txt in os.listdir(labels_dir):
+            if not label_txt.endswith('.txt'):
+                continue
+            label_case_ids.add(label_txt[:-4])
 
     images_dir = get_dataset_images_dir(dataset_name)
     image_case_ids = set()  # 已经复制了图片的样例
@@ -196,7 +139,7 @@ def sync_raw_images_to_dataset(dataset_name: str):
     shutil.rmtree(images_dir)
     os.mkdir(images_dir)
 
-    raw_img_dir = get_raw_images_dir()
+    raw_img_dir = label_studio_utils.get_raw_images_dir()
     for prefix in os.listdir(raw_img_dir):
         sub_img_dir = os.path.join(raw_img_dir, prefix)
         if not os.path.isdir(sub_img_dir):
@@ -206,6 +149,9 @@ def sync_raw_images_to_dataset(dataset_name: str):
             if not img_name.endswith('.png'):
                 continue
             case_id = img_name[:-4]
+
+            if case_id not in label_case_ids:  # 没有包含标签
+                pass
 
             if case_id in image_case_ids:  # 已经复制过图片了
                 pass
@@ -221,24 +167,31 @@ def prepare_dateset(dataset_name: str,
                     cate_to_use: Optional[List[str]] = None,
                     labels_version: str = 'v1'):
     """
-    从label-studio导出后 在训练前进一步处理数据集
+    从基础数据集中 生成一个子数据集
 
     1. 保留目标标签
     2. 过滤没有标签的图片
-    2. 数据增强
+    2. 数据增强 未加入
     3. 划分数据集
     4. 写入 dataset.yaml 同时剔除标签的中文
 
-    :param dataset_name: 数据集id
+    :param dataset_name: 子数据集名称
     :param split_weights: 自动划分数据集的比例
     :param labels_to_use: 限定使用的标签
     :param cate_to_use: 限定使用的类别
     :param labels_version: 标签版本
     """
-    target_dataset_dir = get_dataset_dir(dataset_name)
+    target_dataset_dir = ultralytics_utils.get_dataset_dir(dataset_name)
+    if os.path.exists(target_dataset_dir):
+        shutil.rmtree(target_dataset_dir)
+    os.mkdir(target_dataset_dir)
 
-    labels_to_use_real = reorganize_labels(dataset_name, labels_to_use=labels_to_use, cate_to_use=cate_to_use, labels_version=labels_version)
+    # 初始化标签
+    labels_to_use_real = init_dataset_labels(dataset_name, labels_to_use=labels_to_use, cate_to_use=cate_to_use, labels_version=labels_version)
     # reorganize_images(dataset_name)  # 划分数据集部分可以只选用有标签的文件
+
+    # 初始化图片
+    init_dataset_images(dataset_name)
 
     # 划分数据集
     autosplit(path=os.path.join(target_dataset_dir, 'images'), weights=split_weights, annotated_only=True)
@@ -290,7 +243,7 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
     """
     labels: Set[str] = set()  # 标签
 
-    target_dataset_dir = get_dataset_dir(dataset_name)
+    target_dataset_dir = ultralytics_utils.get_dataset_dir(dataset_name)
 
     # 保留特定标签
     labels_dir = os.path.join(target_dataset_dir, 'labels')
@@ -303,7 +256,7 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
         labels.add(label_txt[:-4])
 
     to_delete_paths: List[str] = []
-    raw_img_dir = get_raw_images_dir()
+    raw_img_dir = label_studio_utils.get_raw_images_dir()
     for cate_img_dir in os.listdir(raw_img_dir):
         cate_img_path = os.path.join(raw_img_dir, cate_img_dir)
         if not os.path.isdir(cate_img_path):
@@ -325,7 +278,7 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
     return to_delete_paths
 
 
-def check_no_self_label_cases(dataset_name: str) -> List[str]:
+def check_no_self_label_cases(dataset_name: str = 'base-detect') -> List[str]:
     """
     检查并返回图片中没有自身标签的样例 大概率是标注错了
     """
