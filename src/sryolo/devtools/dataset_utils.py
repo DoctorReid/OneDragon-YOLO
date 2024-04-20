@@ -236,7 +236,7 @@ def count_labels(dataset_name: str, label_version: str = 'v1') -> dict[str, int]
 
 def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = False) -> List[str]:
     """
-    清理没有标签的原图
+    清理没有标签的原图 包含 label-studio/raw_images目录 和 ultralytics/datasets/{dataset_name}/images目录
     @param dataset_name: 使用的数据集标签
     @param confirm_delete: 确认删除
     @return 没有标签的原图路径
@@ -270,6 +270,16 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
                 continue
 
             to_delete_paths.append(os.path.join(cate_img_path, img))
+
+    dataset_img_dir = get_dataset_images_dir(dataset_name)
+    for img in os.listdir(dataset_img_dir):
+        if not img.endswith('.png'):
+            continue
+        case_id = img[:-4]
+        if case_id in labels:
+            continue
+
+        to_delete_paths.append(os.path.join(dataset_img_dir, img))
 
     if confirm_delete:
         for to_delete in to_delete_paths:
