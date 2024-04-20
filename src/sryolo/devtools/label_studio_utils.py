@@ -7,8 +7,8 @@ import cv2
 import uuid
 from urllib.parse import quote, unquote
 
-from sryolo.utils import os_utils, label_utils
-from sryolo.devtools import ultralytics_utils
+from sryolo.utils import label_utils
+from sryolo.devtools import ultralytics_utils, os_utils
 from ultralytics import YOLO
 
 

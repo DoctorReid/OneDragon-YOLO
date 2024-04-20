@@ -7,8 +7,8 @@ import cv2
 import numpy as np
 import onnxruntime as ort
 
-from sryolo.detector.utils import multiclass_nms, xywh2xyxy, draw_detections
-from sryolo.utils import os_utils
+from sryolo.utils.detector_utils import multiclass_nms, xywh2xyxy, draw_detections
+from sryolo.devtools import os_utils
 from sryolo.utils.log_utils import log
 
 _GH_PROXY_URL = 'https://mirror.ghproxy.com'
