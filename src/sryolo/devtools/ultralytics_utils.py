@@ -5,8 +5,7 @@ from typing import Optional
 import yaml
 from ultralytics import settings
 
-import sryolo.utils.label_utils
-from sryolo.utils import label_utils, str_utils
+from sryolo.utils import label_utils
 from sryolo.devtools import os_utils
 from ultralytics import YOLO
 import pandas as pd
@@ -66,7 +65,7 @@ def get_dataset_label_idx_2_v1_label(dataset_name: str, use_label: str = 'v1') -
     labels_df = label_utils.read_label_csv()
     dataset_label_2_v1_label = {}
     for _, row in labels_df.iterrows():
-        dataset_label_2_v1_label[sryolo.utils.label_utils.remove_cn_in_label(row[use_label])] = row['v1']
+        dataset_label_2_v1_label[label_utils.remove_cn_in_label(row[use_label])] = row['v1']
 
     with open(get_dataset_yaml_path(dataset_name), 'r') as file:
         dataset_config = yaml.safe_load(file)
@@ -87,7 +86,10 @@ def get_export_save_dir(model_name: str) -> str:
     :param model_name:
     :return:
     """
-    dir_path = os.path.join(os_utils.get_work_dir(), 'models', model_name)
+    models_path = os.path.join(os_utils.get_work_dir(), 'models')
+    if not os.path.exists(models_path):
+        os.mkdir(models_path)
+    dir_path = os.path.join(models_path, model_name)
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
     return dir_path
@@ -121,7 +123,7 @@ def export_model(dataset_name: str, label_version: str = 'v1',
     labels_df = label_utils.read_label_csv()
     label_2_cate = {}
     for _, row in labels_df.iterrows():
-        label_2_cate[sryolo.utils.label_utils.remove_cn_in_label(row[label_version])] = row['cate']
+        label_2_cate[label_utils.remove_cn_in_label(row[label_version])] = row['cate']
 
     with open(get_dataset_yaml_path(dataset_name), 'r') as file:
         dataset_config = yaml.safe_load(file)

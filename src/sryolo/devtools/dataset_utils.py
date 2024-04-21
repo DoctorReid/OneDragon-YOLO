@@ -241,19 +241,15 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
     @param confirm_delete: 确认删除
     @return 没有标签的原图路径
     """
-    labels: Set[str] = set()  # 标签
-
-    target_dataset_dir = ultralytics_utils.get_dataset_dir(dataset_name)
+    case_id_with_labels: Set[str] = set()  # 标签
 
     # 保留特定标签
-    labels_dir = os.path.join(target_dataset_dir, 'labels')
-    labels_bk_dir = os.path.join(target_dataset_dir, 'labels_bk')
-    labels_dir_to_use = labels_bk_dir if os.path.exists(labels_bk_dir) else labels_dir
+    labels_dir = get_labels_dir(dataset_name)
 
-    for label_txt in os.listdir(labels_dir_to_use):
+    for label_txt in os.listdir(labels_dir):
         if not label_txt.endswith('.txt'):
             continue
-        labels.add(label_txt[:-4])
+        case_id_with_labels.add(label_txt[:-4])
 
     to_delete_paths: List[str] = []
     raw_img_dir = label_studio_utils.get_raw_images_dir()
@@ -266,7 +262,7 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
             if not img.endswith('.png'):
                 continue
             case_id = img[:-4]
-            if case_id in labels:
+            if case_id in case_id_with_labels:
                 continue
 
             to_delete_paths.append(os.path.join(cate_img_path, img))
@@ -276,7 +272,7 @@ def clear_raw_images_without_label(dataset_name: str, confirm_delete: bool = Fal
         if not img.endswith('.png'):
             continue
         case_id = img[:-4]
-        if case_id in labels:
+        if case_id in case_id_with_labels:
             continue
 
         to_delete_paths.append(os.path.join(dataset_img_dir, img))
