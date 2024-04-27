@@ -1,8 +1,11 @@
+import math
 import os
 import re
 import shutil
 from typing import Optional, List, Set
 
+import cv2
+import numpy as np
 import pandas as pd
 from ultralytics.data.utils import autosplit
 
@@ -12,11 +15,13 @@ from sryolo.utils import label_utils
 _BASE_DETECT = 'base-detect'
 
 
-def get_labels_dir(dataset_name: str) -> str:
+def get_labels_dir(dataset_name: str, bk: bool = False) -> str:
     """
     获取数据集中 标签的文件夹路径
+    :param dataset_name: 数据集名称
+    :param bk: 是否原标签备份
     """
-    dir_path = os.path.join(ultralytics_utils.get_dataset_dir(dataset_name), 'labels')
+    dir_path = os.path.join(ultralytics_utils.get_dataset_dir(dataset_name), 'labels_bk' if bk else 'labels')
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
     return dir_path
@@ -42,16 +47,16 @@ def clear_dataset_labels(dataset_name: str):
     """
     labels_dir = get_labels_dir(dataset_name)
     shutil.rmtree(labels_dir)
-    
 
 
-def init_dataset_labels(dataset_name: str,
-                      labels_to_use: Optional[List[str]] = None,
-                      cate_to_use: Optional[List[str]] = None,
-                      labels_version: str = 'v1'
-                      ) -> List[str]:
+def init_labels_bk(dataset_name: str,
+                   labels_to_use: Optional[List[str]] = None,
+                   cate_to_use: Optional[List[str]] = None,
+                   labels_version: str = 'v1'
+                   ) -> List[str]:
     """
-    初始化一个数据集的标签 从base-detect数据集中复制过来
+    初始化一个数据集的原始标签
+    从base-detect数据集中复制过来
     并按要求 仅保留需要用来训练的
     @param dataset_name: 数据集id
     @param labels_to_use: 限定使用的标签
@@ -59,8 +64,8 @@ def init_dataset_labels(dataset_name: str,
     @param labels_version: 标签版本
     @return 返回过滤后的标签
     """
-    soucec_labels_dir = get_labels_dir(_BASE_DETECT)
-    target_labels_dir = get_labels_dir(dataset_name)
+    source_labels_dir = get_labels_dir(_BASE_DETECT)
+    target_labels_dir = get_labels_dir(dataset_name, bk=True)
 
     # 重新创建标签
     if os.path.exists(target_labels_dir):
@@ -97,10 +102,10 @@ def init_dataset_labels(dataset_name: str,
         label_2_idx_new[label] = id_new
         id_new += 1
 
-    for label_txt in os.listdir(soucec_labels_dir):
+    for label_txt in os.listdir(source_labels_dir):
         if not label_txt.endswith('.txt'):
             continue
-        label_txt_path = os.path.join(soucec_labels_dir, label_txt)
+        label_txt_path = os.path.join(source_labels_dir, label_txt)
         df = read_label_txt(label_txt_path)
 
         # 转化成新的下标
@@ -161,8 +166,86 @@ def init_dataset_images(dataset_name: str):
             shutil.copyfile(old_path, new_path)
 
 
+def init_dataset_images_and_labels(dataset_name: str):
+    """
+    初始化一个数据集的图片和标签
+    原图是 1920*1080 会使用两张图片合并成 2176*2176 (2176=32*68)
+    同时将对应标签合并
+    需要先使用 init_labels_bk 初始化原标签文件夹 labels_bk
+    :param dataset_name: 数据集名称
+    :return:
+    """
+    base_img_dir = get_dataset_images_dir(_BASE_DETECT)
+
+    labels_bk_dir = get_labels_dir(dataset_name, bk=True)
+    labels_dir = get_labels_dir(dataset_name, bk=False)
+    images_dir = get_dataset_images_dir(dataset_name)
+
+    label_txt_names = os.listdir(labels_bk_dir)
+    total_cnt = len(label_txt_names)
+    idx = 0
+
+    while idx < total_cnt:
+        case1 = label_txt_names[idx][:-4]
+
+        img1_path = os.path.join(base_img_dir, '%s.png' % case1)
+        img1 = cv2.imread(img1_path)
+        label1_path = os.path.join(labels_bk_dir, label_txt_names[idx])
+        label1_df = read_label_txt(label1_path)
+
+        if idx + 1 < total_cnt:  # 跟下一张合并
+            case2 = label_txt_names[idx + 1][:-4]
+            img2_path = os.path.join(base_img_dir, '%s.png' % case2)
+            img2 = cv2.imread(img2_path)
+            label2_path = os.path.join(labels_bk_dir, label_txt_names[idx + 1])
+            label2_df = read_label_txt(label2_path)
+        elif idx > 0:  # 跟上一张合并 只有总数=奇数的最后一张会触发
+            case2 = label_txt_names[idx - 1][:-4]
+            img2_path = os.path.join(base_img_dir, '%s.png' % case2)
+            img2 = cv2.imread(img2_path)
+            label2_path = os.path.join(labels_bk_dir, label_txt_names[idx - 1])
+            label2_df = read_label_txt(label2_path)
+        else:  # 跟自己合并 只有总数=1会触发
+            case2 = case1
+            img2 = img1.copy()
+            label2_df = label1_df.copy()
+
+        idx += 2
+
+        height = img1.shape[0]
+        width = img1.shape[1]
+        radius = math.ceil(max(height * 2, width) / 32) * 32
+
+        save_img = np.full((radius, radius, 3), 114, dtype=np.uint8)
+        save_img[0:height, 0:width, :] = img1
+        save_img[height:height+height, 0:width, :] = img2
+
+        label1_df['x'] *= width
+        label1_df['y'] *= height
+        label1_df['w'] *= width
+        label1_df['h'] *= height
+
+        label2_df['x'] *= width
+        label2_df['y'] *= height
+        label2_df['y'] += height
+        label2_df['w'] *= width
+        label2_df['h'] *= height
+
+        save_label_df = pd.concat([label1_df, label2_df])
+        save_label_df['x'] /= radius
+        save_label_df['y'] /= radius
+        save_label_df['w'] /= radius
+        save_label_df['h'] /= radius
+
+        save_img_path = os.path.join(images_dir, '%s-%s.png' % (case1, case2))
+        cv2.imwrite(save_img_path, save_img)
+
+        save_label_path = os.path.join(labels_dir, '%s-%s.txt' % (case1, case2))
+        save_label_df.to_csv(save_label_path, sep=' ', index=False, header=False)
+
+
 def prepare_dateset(dataset_name: str,
-                    split_weights=(0.7, 0.2, 0.1),
+                    split_weights=(0.9, 0.1, 0),
                     labels_to_use: Optional[List[str]] = None,
                     cate_to_use: Optional[List[str]] = None,
                     labels_version: str = 'v1'):
@@ -187,11 +270,10 @@ def prepare_dateset(dataset_name: str,
     os.mkdir(target_dataset_dir)
 
     # 初始化标签
-    labels_to_use_real = init_dataset_labels(dataset_name, labels_to_use=labels_to_use, cate_to_use=cate_to_use, labels_version=labels_version)
-    # reorganize_images(dataset_name)  # 划分数据集部分可以只选用有标签的文件
+    labels_to_use_real = init_labels_bk(dataset_name, labels_to_use=labels_to_use, cate_to_use=cate_to_use, labels_version=labels_version)
 
     # 初始化图片
-    init_dataset_images(dataset_name)
+    init_dataset_images_and_labels(dataset_name)
 
     # 划分数据集
     autosplit(path=os.path.join(target_dataset_dir, 'images'), weights=split_weights, annotated_only=True)

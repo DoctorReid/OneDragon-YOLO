@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import Optional
+from typing import Optional, Tuple
 
 import yaml
 from ultralytics import settings
@@ -96,7 +96,9 @@ def get_export_save_dir(model_name: str) -> str:
 
 
 def export_model(dataset_name: str, label_version: str = 'v1',
-                 train_name: str = 'train', model_name: str = 'best', save_name: Optional[str] = None):
+                 train_name: str = 'train', model_name: str = 'best',
+                 save_name: Optional[str] = None,
+                 imgsz: Tuple[int, int] = (384, 640)):
     """
     导出模型
     1. 在models文件夹下创建子文件夹
@@ -110,10 +112,10 @@ def export_model(dataset_name: str, label_version: str = 'v1',
     """
     pt_model_path = get_train_model_path(dataset_name, train_name, model_name, model_type='pt')
     pt_model = YOLO(pt_model_path)
-    pt_model.export(format='onnx', imgsz=(384, 640))
+    pt_model.export(format='onnx', imgsz=imgsz)
 
     if save_name is None:
-        save_name = dataset_name
+        save_name = train_name
 
     onnx_model_path = get_train_model_path(dataset_name, train_name, model_name, model_type='onnx')
     save_model_path = os.path.join(get_export_save_dir(save_name), 'model.onnx')
