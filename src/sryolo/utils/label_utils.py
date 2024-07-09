@@ -1,5 +1,6 @@
 import os
 import re
+from typing import List
 
 import pandas as pd
 
@@ -18,3 +19,20 @@ def remove_cn_in_label(label: str) -> str:
     :return:
     """
     return re.sub(r'[^a-zA-Z0-9\-]+', '', label).replace('--', '-')
+
+
+def read_sim_uni_objects() -> List[str]:
+    """
+    模拟宇宙中会出现的内容
+    """
+    df = pd.read_csv(os.path.join(os_utils.get_work_dir(), 'sim_uni.csv'))
+    return df['name'].values
+
+
+def read_world_patrol_objects() -> List[str]:
+    """
+    锄大地中需要识别的内容
+    """
+    df = pd.read_csv(os.path.join(os_utils.get_work_dir(), 'world_patrol.csv'))
+    return df['name'].values
+

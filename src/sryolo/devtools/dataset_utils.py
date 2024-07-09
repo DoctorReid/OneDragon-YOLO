@@ -50,8 +50,7 @@ def clear_dataset_labels(dataset_name: str):
 
 
 def init_labels_bk(dataset_name: str,
-                   labels_to_use: Optional[List[str]] = None,
-                   cate_to_use: Optional[List[str]] = None,
+                   objects_to_use: Optional[List[str]] = None,
                    labels_version: str = 'v1'
                    ) -> List[str]:
     """
@@ -59,8 +58,7 @@ def init_labels_bk(dataset_name: str,
     从base-detect数据集中复制过来
     并按要求 仅保留需要用来训练的
     @param dataset_name: 数据集id
-    @param labels_to_use: 限定使用的标签
-    @param cate_to_use: 限定使用的类别
+    @param objects_to_use: 限定使用的内容
     @param labels_version: 标签版本
     @return 返回过滤后的标签
     """
@@ -78,9 +76,7 @@ def init_labels_bk(dataset_name: str,
     labels_to_use_real = []
 
     for index, row in labels_df.iterrows():
-        if labels_to_use is not None and row[labels_version] not in labels_to_use:
-            continue
-        if cate_to_use is not None and row['cate'] not in cate_to_use:
+        if objects_to_use is not None and row['name'] not in objects_to_use:
             continue
         if row[labels_version] in labels_to_use_real:
             continue
@@ -166,15 +162,20 @@ def init_dataset_images(dataset_name: str):
             shutil.copyfile(old_path, new_path)
 
 
-def init_dataset_images_and_labels(dataset_name: str):
+def init_dataset_images_and_labels(dataset_name: str, img_size: int = 2176) -> bool:
     """
     初始化一个数据集的图片和标签
-    原图是 1920*1080 会使用两张图片合并成 2176*2176 (2176=32*68)
+    原图是 1920*1080 会使用两张图片合并成 
+    - 2176*2176 (2176=32*68)
+    - 2208*2208 (2208=32*69)
     同时将对应标签合并
     需要先使用 init_labels_bk 初始化原标签文件夹 labels_bk
     :param dataset_name: 数据集名称
+    :param img_size: 两张图片合并后的图片大小 需要>=1080*2=2160. 需要是32的倍数
     :return:
     """
+    if (img_size < 1080 * 2) or (img_size % 32 != 0):
+        return False
     base_img_dir = get_dataset_images_dir(_BASE_DETECT)
 
     labels_bk_dir = get_labels_dir(dataset_name, bk=True)
@@ -214,7 +215,7 @@ def init_dataset_images_and_labels(dataset_name: str):
 
         height = img1.shape[0]
         width = img1.shape[1]
-        radius = math.ceil(max(height * 2, width) / 32) * 32
+        radius = img_size
 
         save_img = np.full((radius, radius, 3), 114, dtype=np.uint8)
         save_img[0:height, 0:width, :] = img1
@@ -243,11 +244,12 @@ def init_dataset_images_and_labels(dataset_name: str):
         save_label_path = os.path.join(labels_dir, '%s-%s.txt' % (case1, case2))
         save_label_df.to_csv(save_label_path, sep=' ', index=False, header=False)
 
+    return True
+
 
 def prepare_dateset(dataset_name: str,
                     split_weights=(0.9, 0.1, 0),
-                    labels_to_use: Optional[List[str]] = None,
-                    cate_to_use: Optional[List[str]] = None,
+                    objects_to_use: Optional[List[str]] = None,
                     labels_version: str = 'v1'):
     """
     从基础数据集中 生成一个子数据集
@@ -260,8 +262,7 @@ def prepare_dateset(dataset_name: str,
 
     :param dataset_name: 子数据集名称
     :param split_weights: 自动划分数据集的比例
-    :param labels_to_use: 限定使用的标签
-    :param cate_to_use: 限定使用的类别
+    :param objects_to_use: 限定使用的内容
     :param labels_version: 标签版本
     """
     target_dataset_dir = ultralytics_utils.get_dataset_dir(dataset_name)
@@ -270,7 +271,7 @@ def prepare_dateset(dataset_name: str,
     os.mkdir(target_dataset_dir)
 
     # 初始化标签
-    labels_to_use_real = init_labels_bk(dataset_name, labels_to_use=labels_to_use, cate_to_use=cate_to_use, labels_version=labels_version)
+    labels_to_use_real = init_labels_bk(dataset_name, objects_to_use=objects_to_use, labels_version=labels_version)
 
     # 初始化图片
     init_dataset_images_and_labels(dataset_name)
