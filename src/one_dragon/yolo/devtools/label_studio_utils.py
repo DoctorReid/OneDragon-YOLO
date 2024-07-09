@@ -8,7 +8,8 @@ import uuid
 from urllib.parse import quote, unquote
 
 from sryolo.utils import label_utils
-from sryolo.devtools import ultralytics_utils, os_utils
+from one_dragon.yolo.devtools import ultralytics_utils
+from one_dragon.yolo.devtools import os_utils
 from ultralytics import YOLO
 
 

@@ -6,7 +6,7 @@ import yaml
 from ultralytics import settings
 
 from sryolo.utils import label_utils
-from sryolo.devtools import os_utils
+from one_dragon.yolo.devtools import os_utils
 from ultralytics import YOLO
 import pandas as pd
 

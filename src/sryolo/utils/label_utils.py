@@ -4,7 +4,7 @@ from typing import List
 
 import pandas as pd
 
-from sryolo.devtools import os_utils
+from one_dragon.yolo.devtools import os_utils
 
 
 def read_label_csv() -> pd.DataFrame:
