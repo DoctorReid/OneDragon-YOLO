@@ -9,7 +9,7 @@ import numpy as np
 import onnxruntime as ort
 import pandas as pd
 from cv2.typing import MatLike
-from utils.log_utils import log
+from src.one_dragon.yolo.log_utils import log
 
 
 class DetectContext:

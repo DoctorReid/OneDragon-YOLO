@@ -5,3 +5,4 @@ ultralytics/
 label-studio/
 models/
 notebook/**/yolov8*.pt
+.debug/

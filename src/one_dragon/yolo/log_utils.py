@@ -1,12 +1,12 @@
 import logging
 import os
 
-VERBOSE = str(os.getenv("SR_YOLO_VERBOSE", True)).lower() == "true"  # 开启日志
+_VERBOSE = str(os.getenv("OD_YOLO_VERBOSE", True)).lower() == "true"  # 开启日志
 
 
 def get_logger():
-    level = logging.INFO if VERBOSE else logging.ERROR
-    logger = logging.getLogger('StarRail-YOLO')
+    level = logging.INFO if _VERBOSE else logging.ERROR
+    logger = logging.getLogger('OneDragon-YOLO')
     logger.handlers.clear()
     logger.setLevel(level)
 

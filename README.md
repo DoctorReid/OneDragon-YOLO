@@ -1,21 +1,16 @@
-# StarRail-YOLO
+# OneDragon-YOLO
 
-崩坏：星穹铁道 YOLO 目标检测
-
-仅以此项目记录小白的第一次使用YOLO之旅。
+用于一条龙脚本的YOLO项目
 
 # 开发环境说明
 
 - Python版本 = 3.11.9
 - CUDA版本 = 12.4 Windows x86_64 Version 11
-- pytorch = 2.2.2 cuda=12.1 参考[官网](https://pytorch.org/get-started/locally/)安装
-  - cuda12.1 `pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121`
-  - cpu `pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cpu`
+- ultralytics = 参考[官网](https://docs.ultralytics.com/quickstart/#install-ultralytics)
+  - cuda by conda `conda install -c pytorch -c nvidia -c conda-forge pytorch torchvision pytorch-cuda=11.8 ultralytics`
+  - cpu `pip install ultralytics`。注意本方式安装的pytorch不是cuda版本的，如果在这之后想用pip安装cuda的pytorch，需要自行删除后重新安装，参考下面。
+  - cuda by pip 参考[官网](https://pytorch.org/get-started/locally/)安装(版本不一定对了) `pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121`
 - 其他依赖 `pip install -r requirements.txt`
-
-注意 `ultralytics` 自带依赖的pytorch不是cuda版本的，因此需要先安装pytorch或自己删除后重新安装。
-
-`install.bat`是用来在本地目录下建立虚拟环境`.env/venv/`的，你也可以使用自己的环境。
 
 # 训练
 
