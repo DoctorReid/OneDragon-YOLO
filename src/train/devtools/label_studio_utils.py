@@ -8,9 +8,9 @@ import uuid
 from urllib.parse import quote, unquote
 
 from sryolo.utils import label_utils
-from one_dragon.yolo.devtools import ultralytics_utils
-from one_dragon.yolo.devtools import os_utils
 from ultralytics import YOLO
+
+from train.devtools import os_utils, ultralytics_utils
 
 
 def get_label_studio_data_dir() -> str:

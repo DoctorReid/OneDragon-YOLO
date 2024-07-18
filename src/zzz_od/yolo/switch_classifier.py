@@ -7,7 +7,7 @@ import numpy as np
 from cv2.typing import MatLike
 
 from src.one_dragon.yolo import onnx_utils
-from src.one_dragon.yolo.devtools import os_utils
+from src.train.devtools import os_utils
 from src.one_dragon.yolo.log_utils import log
 from src.one_dragon.yolo.onnx_model_loader import OnnxModelLoader
 
