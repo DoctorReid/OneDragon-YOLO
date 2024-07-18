@@ -5,7 +5,7 @@ import zipfile
 import onnxruntime as ort
 from typing import Optional, List
 
-from src.one_dragon.yolo.log_utils import log
+from one_dragon.yolo.log_utils import log
 
 _GH_PROXY_URL = 'https://mirror.ghproxy.com'
 
