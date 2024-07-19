@@ -47,9 +47,8 @@ def classify_augmentations(
         raise TypeError(f"classify_augmentations() size {size} must be integer, not (list, tuple)")
     ratio = tuple(ratio or (3.0 / 4.0, 4.0 / 3.0))  # default imagenet ratio range
     primary_tfl = [
-        RandomAspectRatio(ratio, interpolation=interpolation),
-        SquarePad(),
-        T.Resize(size, interpolation=interpolation),
+        RandomAspectRatio(ratio, ratio_percent=ratio_percent, interpolation=interpolation),
+        SquarePad(after_size=size, interpolation=interpolation),
     ]
     if hflip > 0.0:
         primary_tfl.append(T.RandomHorizontalFlip(p=hflip))
