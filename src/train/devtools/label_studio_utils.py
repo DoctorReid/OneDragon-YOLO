@@ -256,3 +256,28 @@ def generate_tasks_by_predictions(dataset_name: Optional[str] = None, train_name
             new_task_path = os.path.join(sub_task_dir, '%s.json' % case_id)
             with open(new_task_path, 'w') as file:
                 json.dump(task, file, indent=4)
+
+
+def get_img_name_2_path(raw_dir: str) -> dict[str, str]:
+    """
+    获取一个项目中 图片名字对应的图片路径
+    """
+    result = {}
+    sub_dir_list = os.listdir(raw_dir)
+    for sub_dir_name in sub_dir_list:
+        sub_dir_path = os.path.join(raw_dir, sub_dir_name)
+        if not os.path.isdir(sub_dir_path):
+            continue
+
+        img_list = os.listdir(sub_dir_path)
+        for img_name in img_list:
+            if not img_name.endswith('.png'):
+                continue
+            img_path = os.path.join(sub_dir_path, img_name)
+            result[img_name[:-4]] = img_path
+
+    return result
+
+
+if __name__ == '__main__':
+    print(get_img_name_2_path(os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event', 'raw')))
