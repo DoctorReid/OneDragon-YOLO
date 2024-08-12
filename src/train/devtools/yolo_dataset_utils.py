@@ -212,6 +212,10 @@ def init_dataset(
 
     # 划分数据集
     autosplit(path=ultralytics_utils.get_dataset_images_dir(dataset_name), weights=split_weights, annotated_only=True)
+    if split_weights[1] == 0:
+        train_txt_path = os.path.join(target_dataset_dir, 'autosplit_train.txt')
+        val_txt_path = os.path.join(target_dataset_dir, 'autosplit_val.txt')
+        shutil.copy(train_txt_path, val_txt_path)
 
     # 保存dataset.yaml
     with open(os.path.join(target_dataset_dir, 'dataset.yaml'), 'w', encoding='utf-8') as file:

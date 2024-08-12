@@ -1,16 +1,15 @@
 import json
 import os
 import shutil
-from typing import Optional
-
-import cv2
 import uuid
+from typing import List, Optional
 from urllib.parse import quote, unquote
 
-from sryolo.utils import label_utils
+import cv2
 from ultralytics import YOLO
 
-from train.devtools import os_utils, ultralytics_utils
+from sryolo.utils import label_utils
+from train.devtools import os_utils
 
 
 def get_label_studio_data_dir() -> str:
@@ -20,11 +19,11 @@ def get_label_studio_data_dir() -> str:
     return os.path.join(os_utils.get_work_dir(), 'label-studio')
 
 
-def get_raw_images_dir() -> str:
+def get_raw_images_dir(project_dir: str) -> str:
     """
     原图的根目录
     """
-    return os.path.join(get_label_studio_data_dir(), 'raw_images')
+    return os.path.join(project_dir, 'raw_images')
 
 
 def get_annotations_dir() -> str:
@@ -34,22 +33,22 @@ def get_annotations_dir() -> str:
     return os.path.join(get_label_studio_data_dir(), 'annotations')
 
 
-def get_tasks_dir() -> str:
+def get_tasks_dir(project_dir: str) -> str:
     """
     标注任务的根目录 label-studio 自动同步Source的目录
     """
-    path = os.path.join(get_label_studio_data_dir(), 'tasks')
+    path = os.path.join(project_dir, 'tasks')
     if not os.path.exists(path):
         os.mkdir(path)
     return path
 
 
-def get_sub_task_dir(v1_label):
+def get_sub_task_dir(project_dir: str, label_name: str):
     """
     标注任务的子目录
     """
-    tasks_dir = get_tasks_dir()
-    sub_task_dir = os.path.join(tasks_dir, v1_label)
+    tasks_dir = get_tasks_dir(project_dir)
+    sub_task_dir = os.path.join(tasks_dir, label_name)
     if not os.path.exists(sub_task_dir):
         os.mkdir(sub_task_dir)
     return sub_task_dir
@@ -65,13 +64,13 @@ def list_label_template(col: str):
         print('<Label value="%s"/>' % v1)
 
 
-def get_img_name_2_annotations() -> dict:
+def get_img_name_2_annotations(project_dir: str) -> dict:
     """
     获取当前的标注
     key=图片文件名
     value=Label-Studio自动同步保存的标注
     """
-    annotations_dir = get_annotations_dir()
+    annotations_dir = os.path.join(project_dir, 'annotations')
     img_2_annotations = {}
     for annotation_file_name in os.listdir(annotations_dir):
         if annotation_file_name.find('.') > -1:
@@ -91,16 +90,6 @@ def get_img_name_2_annotations() -> dict:
             img_2_annotations[file_path[file_path.rfind('\\') + 1:]] = label_new
 
     return img_2_annotations
-
-
-def fill_uid_black(img):
-    """
-    将截图的UID部分变成灰色
-    :param img: 屏幕截图
-    """
-    lt = (30, 1030)
-    rb = (200, 1080)
-    cv2.rectangle(img, lt, rb, (114, 114, 114), -1)
 
 
 def rename_raw_images(renew: bool = False) -> dict[str, str]:
@@ -148,18 +137,14 @@ def rename_raw_images(renew: bool = False) -> dict[str, str]:
     return img_path_old_to_new
 
 
-def generate_tasks_from_annotations(renew: bool = False):
+def generate_tasks_from_annotations(project_dir: str):
     """
     从已有的标注文件中生成task 适合用于导入其他Label-Studio项目标注的数据
-    并对原图文件夹中的图片进行重命名 按子文件夹名称做前缀
-
     """
-    raw_img_dir = get_raw_images_dir()
-
-    old_img_2_annotations = get_img_name_2_annotations()
+    old_img_2_annotations = get_img_name_2_annotations(project_dir)
     new_img_2_annotations = {}
 
-    if old_name in old_img_2_annotations:
+    for old_name, old_annotations in old_img_2_annotations.items():
         new_annotations = old_img_2_annotations[old_name].copy()
         new_annotations['data']['image'] = '/data/local-files/?d=' + quote(
             new_path[new_path.find('raw_images'):])
@@ -172,8 +157,8 @@ def generate_tasks_from_annotations(renew: bool = False):
             json.dump(annotations, file, indent=4)
 
 
-def get_with_task_case_ids():
-    tasks_dir = get_tasks_dir()
+def get_with_task_case_ids(project_dir: str):
+    tasks_dir = get_tasks_dir(project_dir)
     with_tasks_case_ids = set()
     for sub_task_dir_name in os.listdir(tasks_dir):
         sub_task_dir = os.path.join(tasks_dir, sub_task_dir_name)
@@ -186,26 +171,28 @@ def get_with_task_case_ids():
     return with_tasks_case_ids
 
 
-def generate_tasks_by_predictions(dataset_name: Optional[str] = None, train_name: Optional[str] = None, pt_name: str = 'best', use_label: str = 'v1'):
+def generate_tasks_by_predictions(
+        project_dir: str,
+        model: YOLO, model_version: str, classes: List[str],
+        max_count: Optional[int] = None
+) -> None:
     """
     从raw_images中 找出还没有创建task的图片 进行预测并生成task
+    :param project_dir: 项目目录
+    :param model: 模型
+    :param model_version: 模型版本
+    :param classes: 类别
+    :param max_count: 最大生成数量
     """
-    with_tasks_case_ids = get_with_task_case_ids()
+    with_tasks_case_ids = get_with_task_case_ids(project_dir)
+    raw_images_dir = get_raw_images_dir(project_dir)
 
-    if dataset_name is not None and train_name is not None:
-        dataset_label_idx_2_v1_label = ultralytics_utils.get_dataset_label_idx_2_v1_label(dataset_name, use_label)
-        model_path = ultralytics_utils.get_train_model_path(dataset_name, train_name, pt_name)
-        model = YOLO(model_path)
-    else:
-        model = None
-    
-    raw_images_dir = get_raw_images_dir()
-
+    cnt = 0
     for sub_dir_name in os.listdir(raw_images_dir):
         sub_dir = os.path.join(raw_images_dir, sub_dir_name)
         if not os.path.isdir(sub_dir):
             continue
-        sub_task_dir = get_sub_task_dir(sub_dir_name)
+        sub_task_dir = get_sub_task_dir(project_dir, sub_dir_name)
         if not os.path.exists(sub_task_dir):
             os.mkdir(sub_task_dir)
         for img_name in os.listdir(sub_dir):
@@ -226,7 +213,7 @@ def generate_tasks_by_predictions(dataset_name: Optional[str] = None, train_name
 
                 if len(result.boxes) > 0:
                     task['predictions'] = [
-                        {'model_version': f'{dataset_name}-{train_name}-{pt_name}', 'result': []}
+                        {'model_version': model_version, 'result': []}
                     ]
 
                 for i in range(len(result.boxes.cls)):
@@ -242,9 +229,7 @@ def generate_tasks_by_predictions(dataset_name: Optional[str] = None, train_name
                             'width': xywh[2] * 100,
                             'height': xywh[3] * 100,
                             'rotation': 0,
-                            'rectanglelabels': [
-                                dataset_label_idx_2_v1_label[cls]
-                            ]
+                            'rectanglelabels': [classes[cls]]
                         },
                         'id': str(uuid.uuid4()),
                         'from_name': "label",
@@ -256,6 +241,9 @@ def generate_tasks_by_predictions(dataset_name: Optional[str] = None, train_name
             new_task_path = os.path.join(sub_task_dir, '%s.json' % case_id)
             with open(new_task_path, 'w') as file:
                 json.dump(task, file, indent=4)
+            cnt += 1
+            if max_count is not None and cnt >= max_count:
+                return
 
 
 def get_img_name_2_path(raw_dir: str) -> dict[str, str]:
