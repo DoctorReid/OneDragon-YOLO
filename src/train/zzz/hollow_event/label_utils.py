@@ -67,3 +67,22 @@ def rename_file_in_raw() -> None:
 def get_labels() -> List[str]:
     label_df = read_label_csv()
     return ['%04d' % i for i in label_df['label'].tolist()]
+
+
+def get_labels_with_name() -> List[str]:
+    label_df = read_label_csv()
+    result = []
+    for index, row in label_df.iterrows():
+        result.append('%04d-%s' % (row['label'], row['entry_name']))
+    return result
+
+
+def print_ls_labels():
+    label_df = read_label_csv()
+    for index, row in label_df.iterrows():
+        print('<Label value="%04d-%s" />' % (row['label'], row['entry_name']))
+
+
+if __name__ == '__main__':
+    create_label_studio_dirs()
+    rename_file_in_raw()

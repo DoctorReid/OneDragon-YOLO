@@ -135,6 +135,7 @@ def export_model(dataset_name: str,
 
     labels_csv_path = os.path.join(export_dir, 'labels.csv')
     with open(labels_csv_path, 'w', encoding='utf-8') as file:
+        file.write('idx,label\n')
         label_data = yml_data.get('names', {})
         for idx, label in label_data.items():
             file.write('%d,%s\n' % (idx, label))

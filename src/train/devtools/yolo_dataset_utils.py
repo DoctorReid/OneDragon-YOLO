@@ -1,4 +1,5 @@
 import os
+import random
 import shutil
 from typing import Optional, List
 
@@ -115,34 +116,23 @@ def init_dataset_images_and_labels(
     os.mkdir(target_label_dir)
 
     total_cnt = len(target_label_bk_list)
-    idx = 0
+    case1_idx = 0
 
-    while idx < total_cnt:
-        case1 = target_label_bk_list[idx][:-4]
+    for case1_idx in range(total_cnt):
+        case2_idx = random.randint(0, total_cnt-1)
+        
+        case1 = target_label_bk_list[case1_idx][:-4]
+        case2 = target_label_bk_list[case2_idx][:-4]
 
         img1_path = name_2_img_path[case1]
         img1 = cv2.imread(img1_path)
-        label1_path = os.path.join(target_label_bk_dir, target_label_bk_list[idx])
+        label1_path = os.path.join(target_label_bk_dir, target_label_bk_list[case1_idx])
         label1_df = read_label_txt(label1_path)
 
-        if idx + 1 < total_cnt:  # 跟下一张合并
-            case2 = target_label_bk_list[idx + 1][:-4]
-            img2_path = name_2_img_path[case2]
-            img2 = cv2.imread(img2_path)
-            label2_path = os.path.join(target_label_bk_dir, target_label_bk_list[idx + 1])
-            label2_df = read_label_txt(label2_path)
-        elif idx > 0:  # 跟上一张合并 只有总数=奇数的最后一张会触发
-            case2 = target_label_bk_list[idx - 1][:-4]
-            img2_path = name_2_img_path[case2]
-            img2 = cv2.imread(img2_path)
-            label2_path = os.path.join(target_label_bk_dir, target_label_bk_list[idx - 1])
-            label2_df = read_label_txt(label2_path)
-        else:  # 跟自己合并 只有总数=1会触发
-            case2 = case1
-            img2 = img1.copy()
-            label2_df = label1_df.copy()
-
-        idx += 2
+        img2_path = name_2_img_path[case2]
+        img2 = cv2.imread(img2_path)
+        label2_path = os.path.join(target_label_bk_dir, target_label_bk_list[case2_idx])
+        label2_df = read_label_txt(label2_path)
 
         height = img1.shape[0]
         width = img1.shape[1]

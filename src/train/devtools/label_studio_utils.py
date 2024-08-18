@@ -8,7 +8,6 @@ from urllib.parse import quote, unquote
 import cv2
 from ultralytics import YOLO
 
-from sryolo.utils import label_utils
 from train.devtools import os_utils
 
 
@@ -23,7 +22,7 @@ def get_raw_images_dir(project_dir: str) -> str:
     """
     原图的根目录
     """
-    return os.path.join(project_dir, 'raw_images')
+    return os.path.join(project_dir, 'raw')
 
 
 def get_annotations_dir() -> str:
@@ -82,11 +81,12 @@ def get_img_name_2_annotations(project_dir: str) -> dict:
                 'data': {},
                 'annotations': []
             }
+            label_new['id'] = label_old['id']
             label_new['data']['image'] = label_old['task']['data']['image']
             label_new['annotations'].append({
                 'result': label_old['result']
             })
-            file_path = unquote(label_new['data']['image'][21:])  # 21位开始是raw_images文件夹
+            file_path = unquote(label_new['data']['image'])
             img_2_annotations[file_path[file_path.rfind('\\') + 1:]] = label_new
 
     return img_2_annotations
@@ -141,17 +141,10 @@ def generate_tasks_from_annotations(project_dir: str):
     """
     从已有的标注文件中生成task 适合用于导入其他Label-Studio项目标注的数据
     """
-    old_img_2_annotations = get_img_name_2_annotations(project_dir)
-    new_img_2_annotations = {}
+    img_2_annotations = get_img_name_2_annotations(project_dir)
 
-    for old_name, old_annotations in old_img_2_annotations.items():
-        new_annotations = old_img_2_annotations[old_name].copy()
-        new_annotations['data']['image'] = '/data/local-files/?d=' + quote(
-            new_path[new_path.find('raw_images'):])
-        new_img_2_annotations[new_name] = new_annotations
-
-    tasks_dir = get_tasks_dir()
-    for img_name, annotations in new_img_2_annotations.items():
+    tasks_dir = get_tasks_dir(project_dir)
+    for img_name, annotations in img_2_annotations.items():
         new_task_path = os.path.join(tasks_dir, '%s.json' % img_name[:-4])
         with open(new_task_path, 'w') as file:
             json.dump(annotations, file, indent=4)
@@ -172,7 +165,7 @@ def get_with_task_case_ids(project_dir: str):
 
 
 def generate_tasks_by_predictions(
-        project_dir: str,
+        project_dir: str, data_img_path_prefix: str,
         model: YOLO, model_version: str, classes: List[str],
         max_count: Optional[int] = None
 ) -> None:
@@ -185,6 +178,8 @@ def generate_tasks_by_predictions(
     :param max_count: 最大生成数量
     """
     with_tasks_case_ids = get_with_task_case_ids(project_dir)
+    with_tasks_case_ids = {}
+    with_annotations_case_ids = [i[:-4] for i in get_img_name_2_annotations(project_dir).keys()]
     raw_images_dir = get_raw_images_dir(project_dir)
 
     cnt = 0
@@ -201,11 +196,13 @@ def generate_tasks_by_predictions(
             case_id = img_name[:-4]
             if case_id in with_tasks_case_ids:
                 continue
+            if case_id in with_annotations_case_ids:
+                continue
             img_path = os.path.join(sub_dir, img_name)
             img = cv2.imread(img_path)
     
             task = {'data': {}}
-            task['data']['image'] = '/data/local-files/?d=' + quote(img_path[img_path.find('raw_images'):])
+            task['data']['image'] = '/data/local-files/?d=' + quote(img_path[img_path.find(data_img_path_prefix):])
 
             if model is not None:
                 results = model.predict(img)
@@ -268,4 +265,15 @@ def get_img_name_2_path(raw_dir: str) -> dict[str, str]:
 
 
 if __name__ == '__main__':
-    print(get_img_name_2_path(os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event', 'raw')))
+    from train.devtools import os_utils, ultralytics_utils
+    from train.zzz.hollow_event import label_utils
+    pt_model_path = ultralytics_utils.get_train_model_path('zzz_hollow_event_2208', 'yolov8n-640', 'best', model_type='pt')
+    pt_model = YOLO(pt_model_path)
+    generate_tasks_by_predictions(
+        project_dir=os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event'),
+        data_img_path_prefix='zzz\\hollow_event\\raw',
+        model=pt_model,
+        model_version='yolov8n-640',
+        classes=label_utils.get_labels_with_name(),
+        # max_count=5
+    )
