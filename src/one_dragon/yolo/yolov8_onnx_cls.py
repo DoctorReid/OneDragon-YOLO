@@ -1,15 +1,12 @@
-import os
 import time
 from typing import Optional, List
 
-import cv2
 import numpy as np
 from cv2.typing import MatLike
 
-from src.one_dragon.yolo import onnx_utils
-from src.train.devtools import os_utils
-from src.one_dragon.yolo.log_utils import log
-from src.one_dragon.yolo.onnx_model_loader import OnnxModelLoader
+from one_dragon.yolo import onnx_utils
+from one_dragon.yolo.log_utils import log
+from one_dragon.yolo.onnx_model_loader import OnnxModelLoader
 
 
 class RunContext:
@@ -52,30 +49,31 @@ class ClassificationResult:
         self.class_idx: int = class_idx  # 分类的下标 -1代表无法识别（不满足阈值）
 
 
-class SwitchClassifier(OnnxModelLoader):
+class Yolov8Classifier(OnnxModelLoader):
 
     def __init__(self,
-                 model_name: str = 'yolov8n-640-switch-0710',
-                 model_parent_dir_path: Optional[str] = os.path.abspath(__file__),  # 默认使用本文件的目录
+                 model_name: str,
+                 model_parent_dir_path: str,  # 默认使用本文件的目录
+                 model_download_url: str,
                  gh_proxy: bool = True,
-                 personal_proxy: Optional[str] = '',
-                 cuda: bool = False,
-                 keep_result_seconds: float = 2
+                 personal_proxy: Optional[str] = None,
+                 gpu: bool = False,
+                 keep_result_seconds: float = 2,
                  ):
         """
         :param model_name: 模型名称 在根目录下会有一个以模型名称创建的子文件夹
         :param model_parent_dir_path: 放置所有模型的根目录
-        :param cuda: 是否启用CUDA
+        :param gpu: 是否启用GPU加速
         :param keep_result_seconds: 保留多长时间的识别结果
         """
         OnnxModelLoader.__init__(
             self,
             model_name=model_name,
-            model_download_url='',
+            model_download_url=model_download_url,
             model_parent_dir_path=model_parent_dir_path,
             gh_proxy=gh_proxy,
             personal_proxy=personal_proxy,
-            cuda=cuda
+            gpu=gpu
         )
 
         self.keep_result_seconds: float = keep_result_seconds  # 保留识别结果的秒数
@@ -84,7 +82,7 @@ class SwitchClassifier(OnnxModelLoader):
     def run(self, image: MatLike, conf: float = 0.9, run_time: Optional[float] = None) -> ClassificationResult:
         """
         对图片进行识别
-        :param image: 使用 opencv 读取的图片 BGR通道
+        :param image: 使用 opencv 读取的图片 RGB通道
         :param conf: 置信度阈值
         :return: 识别结果
         """
@@ -110,9 +108,9 @@ class SwitchClassifier(OnnxModelLoader):
         """
         推理前的预处理
         """
-        input_tensor = onnx_utils.scale_input_image_u(context.img, self.onnx_input_width, self.onnx_input_height)
-        context.scale_height = input_tensor.shape[0]
-        context.scale_width = input_tensor.shape[1]
+        input_tensor, scale_height, scale_width = onnx_utils.scale_input_image_u(context.img, self.onnx_input_width, self.onnx_input_height)
+        context.scale_height = scale_height
+        context.scale_width = scale_width
         return input_tensor
 
     def inference(self, input_tensor: np.ndarray):
@@ -157,28 +155,3 @@ class SwitchClassifier(OnnxModelLoader):
             return self.run_result_history[len(self.run_result_history) - 1]
         else:
             return None
-
-
-def get_switch_yellow_mask(image: MatLike) -> MatLike:
-    return cv2.inRange(image, (0, 240, 240), (255, 255, 255))
-
-
-def get_switch_red_mask(image: MatLike) -> MatLike:
-    b, g, r = cv2.split(image)
-    g_b = g.astype(np.int16) - b.astype(np.int16)
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    mask[(g_b >= -20) & (g_b <= 20) & (r >= 240)] = 255
-    return mask
-
-
-if __name__ == '__main__':
-    model = SwitchClassifier(model_parent_dir_path=os.path.join(os_utils.get_work_dir(), 'models'))
-
-    _img = cv2.imread(os.path.join(os_utils.get_work_dir(), '.debug', '2.png'))
-    mask1 = get_switch_yellow_mask(_img)
-    mask2 = get_switch_red_mask(_img)
-    mask = cv2.bitwise_or(mask1, mask2)
-    converted = cv2.bitwise_and(_img, _img, mask=mask)
-
-    print(model.run(converted).class_idx)
-    print(model.run(_img).class_idx)

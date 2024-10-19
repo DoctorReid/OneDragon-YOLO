@@ -94,6 +94,7 @@ def init_dataset_images_and_labels(
     :return:
     """
     if (target_img_size < 1080 * 2) or (target_img_size % 32 != 0):
+        print('传入的图片大小不合法')
         return False
 
     name_2_img_path = label_studio_utils.get_img_name_2_path(raw_images_dir_path)
@@ -116,7 +117,6 @@ def init_dataset_images_and_labels(
     os.mkdir(target_label_dir)
 
     total_cnt = len(target_label_bk_list)
-    case1_idx = 0
 
     for case1_idx in range(total_cnt):
         case2_idx = random.randint(0, total_cnt-1)
@@ -220,12 +220,38 @@ def init_dataset(
             label_idx += 1
 
 
+def count_labels(raw_dataset_name: str) -> dict[str, int]:
+    """
+    统计数据集中各标签出现的次数
+    """
+    labels = get_raw_labels(raw_dataset_name)
+    idx_2_label = {}
+    for idx, label in enumerate(labels):
+        idx_2_label[idx] = label
+
+    labels_dir = ultralytics_utils.get_dataset_labels_dir(raw_dataset_name)
+    labels_count: dict[str, int] = {}
+    for label_txt in os.listdir(labels_dir):
+        if not label_txt.endswith('.txt'):
+            continue
+        txt_df = read_label_txt(os.path.join(labels_dir, label_txt))
+        for idx, row in txt_df.iterrows():
+            label = idx_2_label[int(row['idx'])]
+            if label not in labels_count:
+                labels_count[label] = 1
+            else:
+                labels_count[label] = labels_count[label] + 1
+
+    return labels_count
+
+
 if __name__ == '__main__':
-    init_dataset(
-        dataset_name='zzz_hollow_event_2208',
-        raw_dataset_name='zzz_hollow_event_raw',
-        raw_images_dir_path=os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event', 'raw'),
-        target_img_size=2208,
-        split_weights=(1, 0, 0),
-        usage_labels=['临时拍档-0014']
-    )
+    # init_dataset(
+    #     dataset_name='zzz_hollow_event_2208',
+    #     raw_dataset_name='zzz_hollow_event_raw',
+    #     raw_images_dir_path=os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event', 'raw'),
+    #     target_img_size=2208,
+    #     split_weights=(1, 0, 0),
+    #     usage_labels=['临时拍档-0014']
+    # )
+    print(count_labels('zzz_hollow_event_raw'))

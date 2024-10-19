@@ -267,13 +267,17 @@ def get_img_name_2_path(raw_dir: str) -> dict[str, str]:
 if __name__ == '__main__':
     from train.devtools import os_utils, ultralytics_utils
     from train.zzz.hollow_event import label_utils
-    pt_model_path = ultralytics_utils.get_train_model_path('zzz_hollow_event_2208', 'yolov8s-640', 'best', model_type='pt')
+    model_name = 'yolov8s-736'
+    pt_model_path = ultralytics_utils.get_train_model_path('zzz_hollow_event_2208', model_name, 'best', model_type='pt')
     pt_model = YOLO(pt_model_path)
     generate_tasks_by_predictions(
         project_dir=os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event'),
         data_img_path_prefix='zzz\\hollow_event\\raw',
         model=pt_model,
-        model_version='yolov8s-640',
+        model_version=model_name,
         classes=label_utils.get_labels_with_name(),
-        # max_count=5
+        # max_count=1
     )
+    # generate_tasks_from_annotations(
+    #     project_dir=os_utils.get_path_under_work_dir('label_studio', 'zzz', 'hollow_event'),
+    # )
