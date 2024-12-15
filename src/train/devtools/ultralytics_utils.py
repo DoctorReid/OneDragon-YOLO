@@ -120,8 +120,48 @@ def export_model(dataset_name: str,
             file.write('%d,%s\n' % (idx, label))
 
 
+def export_cls_model(
+        dataset_name: str,
+        train_name: str = 'train',
+        model_name: str = 'best',
+        save_name: Optional[str] = None,
+        imgsz: Tuple[int, int] = (384, 640)
+):
+    pt_model_path = get_train_model_path(dataset_name, train_name, model_name, model_type='pt')
+    pt_model = YOLO(pt_model_path)
+    pt_model.export(format='onnx', imgsz=imgsz)
+
+    if save_name is None:
+        save_name = train_name
+
+    export_dir = get_export_save_dir(dataset_name, save_name)
+    onnx_model_path = get_train_model_path(dataset_name, train_name, model_name, model_type='onnx')
+    save_model_path = os.path.join(export_dir, 'model.onnx')
+
+    shutil.move(onnx_model_path, save_model_path)
+
+    train_dataset_dir = os.path.join(get_dataset_dir(dataset_name), 'train')
+    cls_data = []
+    for cls_dir in os.listdir(train_dataset_dir):
+        cls_data.append(cls_dir.split('-'))
+
+    labels_csv_path = os.path.join(export_dir, 'labels.csv')
+    with open(labels_csv_path, 'w', encoding='utf-8') as file:
+        file.write('idx,label\n')
+        for cls_item in cls_data:
+            file.write(f'{cls_item[0]},{cls_item[1]}\n')
+
+
+
 if __name__ == '__main__':
-    export_model(
-        dataset_name='zzz_hollow_event_2208',
-        train_name='yolov8n-640',
+    # export_model(
+    #     dataset_name='zzz_hollow_event_2208',
+    #     train_name='yolov8n-640',
+    # )
+
+    export_cls_model(
+        dataset_name='zzz_dodge_raw',
+        train_name = 'train',
+        imgsz = 640,
+        model_name = 'best',
     )
