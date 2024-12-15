@@ -22,7 +22,7 @@
 
 ## 分类
 
-[表格](labels.csv)
+[表格](labels/sr/labels.csv)
 
 # 其他 
 

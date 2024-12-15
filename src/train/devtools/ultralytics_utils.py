@@ -2,12 +2,10 @@ import os
 import shutil
 from typing import Optional, Tuple
 
-import pandas as pd
 import yaml
 from ultralytics import YOLO
 from ultralytics import settings
 
-from sryolo.utils import label_utils
 from train.devtools import os_utils
 
 
@@ -71,25 +69,6 @@ def get_train_model_path(dataset_name: str, train_name: str, model_name: str = '
     获取一个训练模型的路径
     """
     return os.path.join(get_dataset_model_dir(dataset_name), train_name, 'weights', '%s.%s' % (model_name, model_type))
-
-
-def get_dataset_label_idx_2_v1_label(dataset_name: str, use_label: str = 'v1') -> dict[int, str]:
-    labels_df = label_utils.read_label_csv()
-    dataset_label_2_v1_label = {}
-    for _, row in labels_df.iterrows():
-        dataset_label_2_v1_label[label_utils.remove_cn_in_label(row[use_label])] = row['v1']
-
-    with open(get_dataset_yaml_path(dataset_name), 'r') as file:
-        dataset_config = yaml.safe_load(file)
-
-    dataset_label_idx_2_v1_label = {}
-
-    for i in range(100):
-        if i not in dataset_config['names']:
-            break
-        dataset_label_idx_2_v1_label[i] = dataset_label_2_v1_label[dataset_config['names'][i]]
-
-    return dataset_label_idx_2_v1_label
 
 
 def get_export_save_dir(dataset_name: str, model_name: str) -> str:

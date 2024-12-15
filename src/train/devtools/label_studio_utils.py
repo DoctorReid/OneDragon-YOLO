@@ -63,11 +63,16 @@ def list_label_template(col: str):
         print('<Label value="%s"/>' % v1)
 
 
-def get_img_name_2_annotations(project_dir: str) -> dict:
+def get_img_name_2_annotations(project_dir: str,
+                               old_img_path_prefix: Optional[str] = None,
+                               new_img_path_prefix: Optional[str] = None,) -> dict:
     """
     获取当前的标注
     key=图片文件名
     value=Label-Studio自动同步保存的标注
+    :param project_dir:
+    :param old_img_path_prefix: 旧的图片路径根目录
+    :param new_img_path_prefix: 新的图片路径根目录
     """
     annotations_dir = os.path.join(project_dir, 'annotations')
     img_2_annotations = {}
@@ -86,7 +91,15 @@ def get_img_name_2_annotations(project_dir: str) -> dict:
             label_new['annotations'].append({
                 'result': label_old['result']
             })
-            file_path = unquote(label_new['data']['image'])
+
+            common_image_file_prefix = '/data/local-files/?d='
+            file_path = unquote(label_new['data']['image'].replace(common_image_file_prefix, ''))
+
+            # 更正图片路径
+            if old_img_path_prefix is not None and new_img_path_prefix is not None:
+                file_path = file_path.replace(old_img_path_prefix, new_img_path_prefix)
+                label_new['data']['image'] = f'{common_image_file_prefix}{quote(file_path)}'
+
             img_2_annotations[file_path[file_path.rfind('\\') + 1:]] = label_new
 
     return img_2_annotations
@@ -137,11 +150,17 @@ def rename_raw_images(renew: bool = False) -> dict[str, str]:
     return img_path_old_to_new
 
 
-def generate_tasks_from_annotations(project_dir: str):
+def generate_tasks_from_annotations(project_dir: str,
+                               old_img_path_prefix: Optional[str] = None,
+                               new_img_path_prefix: Optional[str] = None,):
     """
     从已有的标注文件中生成task 适合用于导入其他Label-Studio项目标注的数据
     """
-    img_2_annotations = get_img_name_2_annotations(project_dir)
+    img_2_annotations = get_img_name_2_annotations(
+        project_dir,
+        old_img_path_prefix=old_img_path_prefix,
+        new_img_path_prefix=new_img_path_prefix
+    )
 
     tasks_dir = get_tasks_dir(project_dir)
     for img_name, annotations in img_2_annotations.items():

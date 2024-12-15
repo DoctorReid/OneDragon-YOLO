@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from ultralytics.data.utils import autosplit
 
-from sryolo.utils import label_utils
+from train.sr.detector import label_utils
 from train.devtools import ultralytics_utils, label_studio_utils
 
 _BASE_DETECT = 'base-detect'
