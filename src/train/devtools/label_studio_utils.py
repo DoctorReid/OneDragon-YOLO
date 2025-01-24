@@ -6,9 +6,8 @@ from typing import List, Optional
 from urllib.parse import quote, unquote
 
 import cv2
+import pandas as pd
 from ultralytics import YOLO
-
-from train.devtools import os_utils
 
 
 def get_label_studio_data_dir() -> str:
@@ -150,9 +149,10 @@ def rename_raw_images(renew: bool = False) -> dict[str, str]:
     return img_path_old_to_new
 
 
-def generate_tasks_from_annotations(project_dir: str,
-                               old_img_path_prefix: Optional[str] = None,
-                               new_img_path_prefix: Optional[str] = None,):
+def generate_tasks_from_annotations(
+        project_dir: str,
+        old_img_path_prefix: Optional[str] = None,
+        new_img_path_prefix: Optional[str] = None,):
     """
     从已有的标注文件中生成task 适合用于导入其他Label-Studio项目标注的数据
     """
@@ -281,6 +281,66 @@ def get_img_name_2_path(raw_dir: str) -> dict[str, str]:
             result[img_name[:-4]] = img_path
 
     return result
+
+
+def print_labeling_interface(label_df: pd.DataFrame, label_col: str, class_col: str):
+    """
+    根据类别 输入 Labeling Interface 中的配置
+    :param label_df: 类别数据
+    :param label_col: 类别ID的列名 通常是4位数字
+    :param class_col: 类别名称列名 通常是中文名称
+    """
+    for index, row in label_df.iterrows():
+        print('<Label value="%04d-%s" />' % (row[label_col], row[class_col]))
+
+def create_sub_dir_in_raw(project_dir: str, label_df: pd.DataFrame, label_col: str, class_col: str) -> None:
+    """
+    按照分类 创建子文件夹
+    :param project_dir: 项目目录
+    :param label_df: 类别数据
+    :param label_col: 类别ID的列名 通常是4位数字
+    :param class_col: 类别名称列名 通常是中文名称
+    """
+    raw_dir = get_raw_images_dir(project_dir)
+
+    for index, row in label_df.iterrows():
+        sub_dir_name = '%04d-%s' % (row[label_col], row[class_col])
+        sub_dir_path = os.path.join(raw_dir, sub_dir_name)
+        if not os.path.exists(sub_dir_path):
+            os.mkdir(sub_dir_path)
+
+
+def rename_file_in_raw_sub_dir(project_dir: str) -> None:
+    """
+    对原图的文件夹进行重命名
+    :param project_dir: 项目目录
+    """
+    raw_dir = get_raw_images_dir(project_dir)
+    for sub_dir_name in os.listdir(raw_dir):
+        sub_dir = os.path.join(raw_dir, sub_dir_name)
+        if not os.path.isdir(sub_dir):
+            continue
+
+        max_idx: int = 0
+        for file_name in os.listdir(sub_dir):
+            if not file_name.endswith('.png'):
+                continue
+            if file_name.startswith(sub_dir_name):
+                idx = int(file_name[-8:-4])
+                max_idx = max(idx, max_idx)
+        max_idx += 1
+
+        for file_name in os.listdir(sub_dir):
+            if not file_name.endswith('.png'):
+                continue
+
+            if file_name.startswith(sub_dir_name):
+                continue
+
+            old_file_path = os.path.join(sub_dir, file_name)
+            new_file_path = os.path.join(sub_dir, '%s-%04d.png' % (sub_dir_name, max_idx))
+            os.rename(old_file_path, new_file_path)
+            max_idx += 1
 
 
 if __name__ == '__main__':
