@@ -1,6 +1,6 @@
 # OneDragon-YOLO
 
-用于一条龙脚本的YOLO项目
+用于一条龙脚本的YOLO项目，项目已迁移至 [ODA](https://github.com/OneDragon-Anything/OneDragon-YOLO)，本项目废弃
 
 # 开发环境说明
 
